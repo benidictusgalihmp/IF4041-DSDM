@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<style>
+	.links line {
+		stroke: #999;
+		stroke-opacity: 0.6;
+	}
+
+	.nodes circle {
+		stroke: #fff;
+		stroke-width: 1.5px;
+	}
+</style>
+
+<body>
+	<div>
+		<label style="color: white;">Choose date year</label>
+		<div>
+			<select onChange="renderGraph(this.options[this.selectedIndex].value)">
+				<option disabled selected value> -- select an option -- </option>
+				<option value="2016">2016</option>
+				<option value="2017">2017</option>
+				<option value="2018">2018</option>
+			</select>
+		</div>
+		<label style="color: white;">ActualElapsedTime during flight (in minutes)</label>
+		<div>
+			<label style="color: red;">>= 300</label>
+			<label style="color: orange;">>= 200 and < 300</label>
+					<label style="color: yellow;">>= 100 and < 200</label>
+							<label style="color: green;">
+								< 100</label>
+		</div>
+	</div>
+	<svg width="1792" height="1008"></svg>
+</body>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+	function renderGraph(year) {
+		backgroundColor = d3.rgb('#000000')
+		d3.select("body").style("background-color", backgroundColor)
+
+		let filepath = "/data/" + year + ".json";
+
+		d3.json(filepath, function (jsonfile) {
+			//initilize svg or grab svg
+			var svg = d3.select("svg");
+			var width = svg.attr("width");
+			var height = svg.attr("height");
+
+			//intialize data
+			var graph = jsonfile;
+
+			var simulation = d3
+				.forceSimulation(graph.nodes)
+				.force(
+					"link",
+					d3
+						.forceLink()
+						.id(function (d) {
+							return d.name;
+						})
+						.distance(
+							function (d) {
+								return d.actualtime;
+							})
+						.links(graph.links)
+				)
+
+				.force("charge", d3.forceManyBody().strength(-30))
+				.force("center", d3.forceCenter(width / 2, height / 2))
+				.on("tick", ticked);
+
+			var link = svg
+				.append("g")
+				.attr("class", "links")
+				.selectAll("line")
+				.data(graph.links)
+				.enter()
+				.append("line")
+				.attr("stroke-width", function (d) {
+					return 3;
+				})
+				.style("stroke", linkColour);
+
+			var node = svg
+				.append("g")
+				.attr("class", "nodes")
+				.selectAll("circle")
+				.data(graph.nodes)
+				.enter()
+				.append("circle")
+				.attr("r", 5)
+				.attr("fill", function (d) {
+					return "red";
+				})
+				.call(
+					d3
+						.drag()
+						.on("start", dragstarted)
+						.on("drag", dragged)
+						.on("end", dragended)
+				);
+
+			function ticked() {
+				link
+					.attr("x1", function (d) {
+						return d.source.x;
+					})
+					.attr("y1", function (d) {
+						return d.source.y;
+					})
+					.attr("x2", function (d) {
+						return d.target.x;
+					})
+					.attr("y2", function (d) {
+						return d.target.y;
+					});
+
+				node
+					.attr("cx", function (d) {
+						return d.x;
+					})
+					.attr("cy", function (d) {
+						return d.y;
+					});
+			}
+
+			function linkColour(d) {
+				if (d.actualtime >= 300) {
+					return "red";
+				} else if (d.actualtime >= 200 && d.actualtime < 300) {
+					return "orange";
+				} else if (d.actualtime >= 100 && d.actualtime < 200) {
+					return "yellow";
+				} else if (d.actualtime < 100) {
+					return "green"
+				}
+			}
+
+			function dragstarted(d) {
+				if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+				d.fx = d.x;
+				d.fy = d.y;
+			}
+
+			function dragged(d) {
+				d.fx = d3.event.x;
+				d.fy = d3.event.y;
+			}
+
+			function dragended(d) {
+				if (!d3.event.active) simulation.alphaTarget(0);
+				d.fx = null;
+				d.fy = null;
+			}
+		})
+	}
+</script>
